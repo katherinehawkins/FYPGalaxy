@@ -1,0 +1,3 @@
+[submodule "FYPGalaxyData"]
+	path = FYPGalaxyData
+	url = https://github.com/treeizard/FYPGalaxyData.git
