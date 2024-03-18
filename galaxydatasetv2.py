@@ -32,7 +32,8 @@ class RadioGalaxyNET(Dataset):
         
         annIds = self.coco.getAnnIds(imgId)
         anns = self.coco.loadAnns(annIds)
-        boxes, masks, labels, area = self.__annToTarget__(anns)
+        boxes, instanceMasks, labels, area = self.__annToTarget__(anns)
+        semanticMasks = self.__instance2semantic__(instanceMasks, labels)
         
         pth = os.path.join(self.root, self.images[imgId]['filename'])
         img = read_image(pth)
@@ -40,7 +41,7 @@ class RadioGalaxyNET(Dataset):
         iscrowd = torch.zeros((len(anns),), dtype=torch.int64) # ?
 
         my_annotation = {'boxes': boxes, 
-                         'masks': masks, 
+                         'masks': instanceMasks, 
                          'labels': labels,
                          'image_id': imgId, 
                          'area': area, 
@@ -48,7 +49,7 @@ class RadioGalaxyNET(Dataset):
 
         if self.transforms is not None: # this seems unfinished
             img = self.transforms(img)
-        return img, my_annotation
+        return img, my_annotation, semanticMasks
     
     def __annToTarget__(self, anns):
         bbox = [[ann['bbox'][0], ann['bbox'][1], 
@@ -63,6 +64,13 @@ class RadioGalaxyNET(Dataset):
         areas = torch.tensor(areas, dtype=torch.float32)
         return bbox, masks, labels, areas
 
+    def __instance2semantic__(self, instanceMasks, labels):
+        h, w = 450, 450
+        semanticMask = torch.zeros((h, w), dtype=torch.int64)
+        for cat, mask in zip(labels, instanceMasks):
+            semanticMask[mask == 1] = cat
+        return semanticMask
+    
     def __len__(self):
         return len(self.ids)
         
