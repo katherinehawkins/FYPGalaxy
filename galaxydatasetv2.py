@@ -13,10 +13,16 @@ from torchvision.tv_tensors import Mask, BoundingBoxes
 
 class RadioGalaxyNET(Dataset):
     def __init__(self, root: str, annFile: str, detection=False, transform=None, transforms=None):
-        self.root, self.coco = root, COCO(annFile)
-        self.transform, self.transforms = transform, transforms
-        self.ids, self.detection = sorted(self.coco.imgs.keys()), detection
+        self.root = root
+        self.transform = transform
+        self.transforms = transforms
+        self.detection = detection
 
+        self.coco = COCO(annFile)
+        self.ids = sorted(self.coco.imgs.keys())
+        self.__createIndex__(annFile)
+
+    def __createIndex__(self, annFile):
         with open(annFile, 'r') as file:
             self.annotation = json.load(file)
 
@@ -27,6 +33,7 @@ class RadioGalaxyNET(Dataset):
         for ann in self.annotation['annotations']:
             imgId = ann['id']
             self.segmentations[imgId].append(ann)
+        return None
 
     def __getitem__(self, idx):
         idx = idx.tolist() if torch.is_tensor(idx) else idx
@@ -61,7 +68,7 @@ class RadioGalaxyNET(Dataset):
         bbox = [[ann['bbox'][0], ann['bbox'][1], 
                  ann['bbox'][0] + ann['bbox'][2], 
                  ann['bbox'][1] + ann['bbox'][3]] for ann in anns]
-        # this converts from XYWH to XYXY
+        # converts from XYWH to XYXY
         
         labels = [ann['category_id'] for ann in anns]
         areas = [ann['area'] for ann in anns]
