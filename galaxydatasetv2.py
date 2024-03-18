@@ -37,8 +37,32 @@ class RadioGalaxyNET(Dataset):
 
     def __getitem__(self, idx):
         idx = idx.tolist() if torch.is_tensor(idx) else idx
-        
         imgId = self.ids[idx] # corresponding imgId
+        img, boxes, instanceMasks, semanticMask, labels, iscrowd = self.__id2item__(imgId)
+        img, boxes, instanceMasks, semanticMask, area = self.__transform__(img, boxes, instanceMasks, semanticMask)
+        
+        if self.detection:
+            my_annotation = {'boxes': boxes, 
+                             'masks': instanceMasks, 
+                             'labels': labels,
+                             'image_id': imgId, 
+                             'area': area, 
+                             'iscrowd': iscrowd}
+            return img, my_annotation
+        else:
+            return img, semanticMask
+        
+    def __transform__(self, img, boxes, instanceMasks, semanticMask):
+        if self.transforms is not None:
+            img, boxes, instanceMasks, semanticMask = self.transforms(img, boxes, instanceMasks, semanticMask)
+        
+        if self.tranform is not None:
+            img = self.tranform(img)
+        
+        area = box_area(boxes)
+        return img, boxes, instanceMasks, semanticMask, area
+
+    def __id2item__(self, imgId):
         file_pth = os.path.join(self.root, self.images[imgId]['file_name'])
         img = read_image(file_pth)
 
@@ -46,37 +70,19 @@ class RadioGalaxyNET(Dataset):
         anns = self.coco.loadAnns(annIds)
         boxes, instanceMasks, labels, area = self.__annToTarget__(anns)
         semanticMask = self.__instance2semantic__(instanceMasks, labels)
-
-        if self.transforms is not None:
-            img, boxes, instanceMasks, semanticMask = self.transforms(img, boxes, instanceMasks, semanticMask)
-            area = box_area(boxes)
         
-        if self.transform is not None:
-            img = self.transform(img)
-
-        iscrowd = torch.zeros((len(anns),), dtype=torch.int64) # ?
-        my_annotation = {'boxes': boxes, 
-                         'masks': instanceMasks, 
-                         'labels': labels,
-                         'image_id': imgId, 
-                         'area': area, 
-                         'iscrowd': iscrowd}
-        
-        return (img, my_annotation) if self.detection else (img, semanticMask)
+        iscrowd = torch.zeros((len(anns),), dtype=torch.int64)
+        return img, boxes, instanceMasks, semanticMask, labels, iscrowd
     
     def __annToTarget__(self, anns):
-        bbox = [[ann['bbox'][0], ann['bbox'][1], 
+        bbox = [[ann['bbox'][0], ann['bbox'][1], # converts from XYWH to XYXY
                  ann['bbox'][0] + ann['bbox'][2], 
                  ann['bbox'][1] + ann['bbox'][3]] for ann in anns]
-        # converts from XYWH to XYXY
-        
-        labels = [ann['category_id'] for ann in anns]
-        areas = [ann['area'] for ann in anns]
-        masks = np.array([self.coco.annToMask(ann) for ann in anns])
-
         bbox = BoundingBoxes(bbox, format='XYXY', canvas_size=(450, 450))
-        masks, labels = Mask(masks), torch.tensor(labels, dtype=torch.int64)
-        areas = torch.tensor(areas, dtype=torch.float32)
+        
+        labels = torch.tensor([ann['category_id'] for ann in anns], dtype=torch.int64)
+        areas = torch.tensor([ann['area'] for ann in anns], dtype=torch.float32)
+        masks = Mask(np.array([self.coco.annToMask(ann) for ann in anns]))
         return bbox, masks, labels, areas
 
     def __instance2semantic__(self, instanceMasks, labels):
@@ -93,3 +99,15 @@ class RadioGalaxyNET(Dataset):
         for id, cat in self.categories.items():
             print(f'id {id}: {cat["name"]}')
         return None
+    
+    # def showImg(self, idx=None, imgId=None, bbox=True, mask='none'):
+    #     if not idx and not imgId:
+    #         raise('Need idx or imgId to plot!')
+        
+    #     if mask != 'none' and mask != 'semantic' and mask != 'instance':
+    #         raise('Valid choices for mask are none, semantic, and instance!')
+        
+    #     imgId = imgId if imgId else self.ids[idx]
+    #     img, boxes, instanceMasks, semanticMask, _, labels, _ = self.__id2item__(imgId)
+
+        
