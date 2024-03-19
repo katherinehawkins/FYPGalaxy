@@ -19,7 +19,7 @@ class RadioGalaxyNET(Dataset):
         self.h, self.w = 450, 450
 
         self.coco = COCO(annFile)
-        self.ids = sorted(self.coco.imgs.keys())
+        self.ids = sorted(self.coco.imgs.keys()) # image_ids
         self.__createIndex__(annFile)
 
     def __createIndex__(self, annFile):
@@ -29,7 +29,7 @@ class RadioGalaxyNET(Dataset):
         self.categories = {cat['id']: cat for cat in self.annotation['categories']}
         self.images = {img['id']: img for img in self.annotation['images']}
         
-        self.segmentations = defaultdict(list)
+        self.segmentations = defaultdict(list) # maps image_id to annotations
         for ann in self.annotation['annotations']:
             imgId = ann['id']
             self.segmentations[imgId].append(ann)
@@ -43,8 +43,8 @@ class RadioGalaxyNET(Dataset):
         return self.__formatOutput__(imgId, img, boxes, instanceMasks, labels, iscrowd, area)
     
     def __formatOutput__(self, imgId, img, boxes, instanceMasks, labels, iscrowd, area):
-        my_annotation = {'boxes': boxes, 
-                         'masks': instanceMasks, 
+        my_annotation = {'boxes': boxes, # typical for detection
+                         'masks': instanceMasks, # rewrite after inheritance
                          'labels': labels,
                          'image_id': imgId, 
                          'area': area, 
@@ -58,7 +58,7 @@ class RadioGalaxyNET(Dataset):
         if self.transform is not None:
             img = self.transform(img)
         
-        area = box_area(boxes)
+        area = box_area(boxes) # recompute area after transform
         return img, boxes, instanceMasks, area
 
     def __id2item__(self, imgId):
@@ -69,7 +69,7 @@ class RadioGalaxyNET(Dataset):
         anns = self.coco.loadAnns(annIds)
         boxes, instanceMasks, labels = self.__annToTarget__(anns)
         
-        iscrowd = torch.zeros((len(anns),), dtype=torch.int64)
+        iscrowd = torch.zeros((len(anns),), dtype=torch.int64) # ??
         return img, boxes, instanceMasks, labels, iscrowd
     
     def __annToTarget__(self, anns):
@@ -86,7 +86,7 @@ class RadioGalaxyNET(Dataset):
         semanticMask = np.zeros((self.h, self.w), dtype=np.int64)
         for cat, mask in zip(labels, instanceMasks):
             semanticMask[mask == 1] = cat
-        return Mask(semanticMask)
+        return Mask(semanticMask) # rewrite in inheritance if needed
     
     def __len__(self):
         return len(self.ids)
