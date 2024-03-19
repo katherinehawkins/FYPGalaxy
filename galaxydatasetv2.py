@@ -55,8 +55,8 @@ class RadioGalaxyNET(Dataset):
         if self.transforms is not None:
             img, boxes, instanceMasks = self.transforms(img, boxes, instanceMasks)
         
-        if self.tranform is not None:
-            img = self.tranform(img)
+        if self.transform is not None:
+            img = self.transform(img)
         
         area = box_area(boxes)
         return img, boxes, instanceMasks, area
@@ -67,7 +67,7 @@ class RadioGalaxyNET(Dataset):
 
         annIds = self.coco.getAnnIds(imgId)
         anns = self.coco.loadAnns(annIds)
-        boxes, instanceMasks, labels, area = self.__annToTarget__(anns)
+        boxes, instanceMasks, labels = self.__annToTarget__(anns)
         
         iscrowd = torch.zeros((len(anns),), dtype=torch.int64)
         return img, boxes, instanceMasks, labels, iscrowd
@@ -79,9 +79,8 @@ class RadioGalaxyNET(Dataset):
         bbox = BoundingBoxes(bbox, format='XYXY', canvas_size=(self.h, self.w))
         
         labels = torch.tensor([ann['category_id'] for ann in anns], dtype=torch.int64)
-        areas = torch.tensor([ann['area'] for ann in anns], dtype=torch.float32)
         masks = Mask(np.array([self.coco.annToMask(ann) for ann in anns]))
-        return bbox, masks, labels, areas
+        return bbox, masks, labels
 
     def __instance2semantic__(self, instanceMasks, labels):
         semanticMask = np.zeros((self.h, self.w), dtype=np.int64)
@@ -96,15 +95,5 @@ class RadioGalaxyNET(Dataset):
         for id, cat in self.categories.items():
             print(f'id {id}: {cat["name"]}')
         return None
-    
-    # def showImg(self, idx=None, imgId=None, bbox=True, mask='none'):
-    #     if not idx and not imgId:
-    #         raise('Need idx or imgId to plot!')
-        
-    #     if mask != 'none' and mask != 'semantic' and mask != 'instance':
-    #         raise('Valid choices for mask are none, semantic, and instance!')
-        
-    #     imgId = imgId if imgId else self.ids[idx]
-    #     img, boxes, instanceMasks, semanticMask, _, labels, _ = self.__id2item__(imgId)
 
         
