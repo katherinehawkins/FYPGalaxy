@@ -8,7 +8,6 @@ from pycocotools.coco import COCO
 import torch
 from torch.utils.data import Dataset
 from torchvision.io import read_image
-from torchvision.ops import box_area
 from torchvision.tv_tensors import Mask, BoundingBoxes
 
 class RadioGalaxyNET(Dataset):
@@ -66,10 +65,8 @@ class RadioGalaxyNET(Dataset):
         idx = idx.tolist() if torch.is_tensor(idx) else idx
         imgId = self.ids[idx] # corresponding imgId
         img, boxes, instanceMasks, labels, iscrowd, area = self.__id2item__(imgId)
-        img, my_annotation = self.__formatOutput__(imgId, img, boxes, instanceMasks, labels, iscrowd, area) # [Mod: Yide 20/03/2024]: transform requires my_annotation as input
-        img, my_annotation = self.__transform__(img, my_annotation)
-
-        return img, my_annotation
+        img, boxes, instanceMasks, area = self.__transform__(img, boxes, instanceMasks, area)
+        return self.__formatOutput__(imgId, img, boxes, instanceMasks, labels, iscrowd, area)
     
     def __formatOutput__(self, imgId, img, boxes, instanceMasks, labels, iscrowd, area):
         """
@@ -97,7 +94,7 @@ class RadioGalaxyNET(Dataset):
                          'iscrowd': iscrowd}
         return img, my_annotation
         
-    def __transform__(self, img, annotation):
+    def __transform__(self, img, boxes, instanceMasks, area):
         """
         Apply transformations to the image, boxes, and masks.
 
@@ -111,12 +108,12 @@ class RadioGalaxyNET(Dataset):
 
         """
         if self.transforms is not None:
-            img, annotation = self.transforms(img, annotation)
+            img, boxes, instanceMasks, area = self.transforms(img, boxes, instanceMasks, area)
         
         if self.transform is not None:
             img = self.transform(img)
         
-        return img, annotation
+        return img, boxes, instanceMasks, area
 
     def __id2item__(self, imgId):
         """
@@ -135,10 +132,9 @@ class RadioGalaxyNET(Dataset):
 
         annIds = self.coco.getAnnIds(imgId)
         anns = self.coco.loadAnns(annIds)
-        boxes, instanceMasks, labels = self.__annToTarget__(anns)
+        boxes, instanceMasks, labels, area = self.__annToTarget__(anns)
         
         iscrowd = torch.zeros((len(anns),), dtype=torch.int64) #  [Mod: Yide 20/03/2024]: iscrowd not important for our case
-        area = box_area(boxes)  #  [Mod: Yide 20/03/2024]: added area calculation here
         return img, boxes, instanceMasks, labels, iscrowd, area
     
     def __annToTarget__(self, anns):
@@ -157,9 +153,10 @@ class RadioGalaxyNET(Dataset):
                  ann['bbox'][1] + ann['bbox'][3]] for ann in anns]
         bbox = BoundingBoxes(bbox, format='XYXY', canvas_size=(self.h, self.w))
         
+        area = torch.tensor([ann['area'] for ann in anns], dtype=torch.float32)
         labels = torch.tensor([ann['category_id'] for ann in anns], dtype=torch.int64)
         masks = Mask(np.array([self.coco.annToMask(ann) for ann in anns]))
-        return bbox, masks, labels
+        return bbox, masks, labels, area
 
     def __instance2semantic__(self, instanceMasks, labels):
         """
