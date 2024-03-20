@@ -65,9 +65,11 @@ class RadioGalaxyNET(Dataset):
         """
         idx = idx.tolist() if torch.is_tensor(idx) else idx
         imgId = self.ids[idx] # corresponding imgId
-        img, boxes, instanceMasks, labels, iscrowd = self.__id2item__(imgId)
-        img, boxes, instanceMasks, area = self.__transform__(img, boxes, instanceMasks)
-        return self.__formatOutput__(imgId, img, boxes, instanceMasks, labels, iscrowd, area)
+        img, boxes, instanceMasks, labels, iscrowd, area = self.__id2item__(imgId)
+        img, my_annotation = self.__formatOutput__(imgId, img, boxes, instanceMasks, labels, iscrowd, area) # [Mod: Yide 20/03/2024]: transform requires my_annotation as input
+        img, my_annotation = self.__transform__(img, my_annotation)
+
+        return img, my_annotation
     
     def __formatOutput__(self, imgId, img, boxes, instanceMasks, labels, iscrowd, area):
         """
@@ -95,7 +97,7 @@ class RadioGalaxyNET(Dataset):
                          'iscrowd': iscrowd}
         return img, my_annotation
         
-    def __transform__(self, img, boxes, instanceMasks):
+    def __transform__(self, img, annotation):
         """
         Apply transformations to the image, boxes, and masks.
 
@@ -109,13 +111,12 @@ class RadioGalaxyNET(Dataset):
 
         """
         if self.transforms is not None:
-            img, boxes, instanceMasks = self.transforms(img, boxes, instanceMasks)
+            img, annotation = self.transforms(img, annotation)
         
         if self.transform is not None:
             img = self.transform(img)
         
-        area = box_area(boxes) # recompute area after transform
-        return img, boxes, instanceMasks, area
+        return img, annotation
 
     def __id2item__(self, imgId):
         """
@@ -136,8 +137,9 @@ class RadioGalaxyNET(Dataset):
         anns = self.coco.loadAnns(annIds)
         boxes, instanceMasks, labels = self.__annToTarget__(anns)
         
-        iscrowd = torch.zeros((len(anns),), dtype=torch.int64) # ??
-        return img, boxes, instanceMasks, labels, iscrowd
+        iscrowd = torch.zeros((len(anns),), dtype=torch.int64) #  [Mod: Yide 20/03/2024]: iscrowd not important for our case
+        area = box_area(boxes)  #  [Mod: Yide 20/03/2024]: added area calculation here
+        return img, boxes, instanceMasks, labels, iscrowd, area
     
     def __annToTarget__(self, anns):
         """
@@ -194,5 +196,12 @@ class RadioGalaxyNET(Dataset):
         for id, cat in self.categories.items():
             print(f'id {id}: {cat["name"]}')
         return None
+    
+    def display_image(self, idx):
+        """
+        Display Image with instance segmentation mask
+        """
+    
+
 
         
