@@ -7,8 +7,8 @@ from pycocotools.coco import COCO
 
 import torch
 from torch.utils.data import Dataset
-from torchvision.io import read_image
 from torchvision.ops import box_area
+from torchvision.io import read_image
 from torchvision.tv_tensors import Mask, BoundingBoxes
 
 class RadioGalaxyNET(Dataset):
@@ -65,11 +65,9 @@ class RadioGalaxyNET(Dataset):
         """
         idx = idx.tolist() if torch.is_tensor(idx) else idx
         imgId = self.ids[idx] # corresponding imgId
-        img, boxes, instanceMasks, labels, iscrowd, area = self.__id2item__(imgId)
-        img, my_annotation = self.__formatOutput__(imgId, img, boxes, instanceMasks, labels, iscrowd, area) # [Mod: Yide 20/03/2024]: transform requires my_annotation as input
-        img, my_annotation = self.__transform__(img, my_annotation)
-
-        return img, my_annotation
+        img, boxes, instanceMasks, labels, iscrowd = self.__id2item__(imgId)
+        img, boxes, instanceMasks, area = self.__transform__(img, boxes, instanceMasks)
+        return self.__formatOutput__(imgId, img, boxes, instanceMasks, labels, iscrowd, area)
     
     def __formatOutput__(self, imgId, img, boxes, instanceMasks, labels, iscrowd, area):
         """
@@ -97,7 +95,7 @@ class RadioGalaxyNET(Dataset):
                          'iscrowd': iscrowd}
         return img, my_annotation
         
-    def __transform__(self, img, annotation):
+    def __transform__(self, img, boxes, instanceMasks):
         """
         Apply transformations to the image, boxes, and masks.
 
@@ -111,12 +109,13 @@ class RadioGalaxyNET(Dataset):
 
         """
         if self.transforms is not None:
-            img, annotation = self.transforms(img, annotation)
+            img, boxes, instanceMasks = self.transforms(img, boxes, instanceMasks)
         
         if self.transform is not None:
             img = self.transform(img)
         
-        return img, annotation
+        area = box_area(boxes)
+        return img, boxes, instanceMasks, area
 
     def __id2item__(self, imgId):
         """
@@ -138,8 +137,7 @@ class RadioGalaxyNET(Dataset):
         boxes, instanceMasks, labels = self.__annToTarget__(anns)
         
         iscrowd = torch.zeros((len(anns),), dtype=torch.int64) #  [Mod: Yide 20/03/2024]: iscrowd not important for our case
-        area = box_area(boxes)  #  [Mod: Yide 20/03/2024]: added area calculation here
-        return img, boxes, instanceMasks, labels, iscrowd, area
+        return img, boxes, instanceMasks, labels, iscrowd
     
     def __annToTarget__(self, anns):
         """
