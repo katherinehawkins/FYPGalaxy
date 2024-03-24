@@ -6,13 +6,13 @@ import torch.nn as nn
 from torch.optim import AdamW
 
 import numpy as np
-from transformers import SamModel
 from sklearn.metrics import jaccard_score
 
-
-class SAM(nn.Module):
-    def __init__(self):
-        self.model = SamModel.from_pretrained("facebook/sam-vit-base")
+class SAMWrapper(nn.Module):
+    def __init__(self, model):
+        super().__init__()
+        
+        self.model = model
         self.__freezeBackbone__()
     
     def fit(self, cfg):
@@ -21,6 +21,7 @@ class SAM(nn.Module):
         
         self.optimizer = AdamW(self.model.mask_decoder.parameters(), lr=cfg['lr'])
         self.loss = nn.CrossEntropyLoss()
+        self.model = self.model.to(self.device)
 
         bestLoss, bestScores = 1000, []
         with tqdm(range(epochs), desc='Training') as tepoch:
@@ -32,7 +33,7 @@ class SAM(nn.Module):
                 vLoss, vScores = self.__step__(valloader, update=False)
 
             if vLoss < bestLoss:
-                torch.save(self.model.state_dict(), save_path)
+                self.save(save_path)
                 bestLoss, bestScores = vLoss, vScores
             
             tepoch.set_postfix(tLoss=tLoss, tScores=tScores, vLoss=vLoss, vScores=vScores)
@@ -44,16 +45,19 @@ class SAM(nn.Module):
         meanLoss, meanScores = [], []
         for batch in dataloader:
             pixVal, inBox = batch['pixel_values'], batch['input_boxes']
+            labels, gT = batch['input_labels'], batch['ground_truth_mask']
             pixVal, inBox = pixVal.to(self.device), inBox.to(self.device)
+            labels, gT = labels.to(self.device), gT.to(self.device)
 
             outputs = self.model(pixel_values=pixVal, 
                                  input_boxes=inBox, 
+                                 input_labels=labels,
                                  multimask_output=False)
+
+            pred = torch.flatten(pred, end_dim=-3)
+            gT = torch.flatten(gT, end_dim=-3)
             
-            gT = batch['ground_truth_mask']
-            gT = gT.to(self.device)
-            
-            loss = self.loss(outputs.pred_masks, gT)
+            loss = self.loss(pred, gT)
             scores = self.__metrics__(gT, outputs.pred_masks)
             meanScores.append(scores)
 
@@ -61,9 +65,7 @@ class SAM(nn.Module):
                 self.__updateWeights__(loss)
 
         meanScores = np.stack(meanScores)
-        meanScores = np.mean(meanScores, axis=0)
-        meanLoss = mean(meanLoss)
-        return meanLoss, meanScores
+        return mean(meanLoss), np.mean(meanScores, axis=0)
     
     def __updateWeights__(self, loss):
         self.optimizer.zero_grad()
@@ -82,6 +84,10 @@ class SAM(nn.Module):
                 param.requires_grad_(False)
         return None
     
+    def save(self, save_path):
+        torch.save(self.model.state_dict(), save_path)
+        return None
+
     def recover(self, save_path):
         self.model.load_state_dict(torch.load(save_path))
         return None
