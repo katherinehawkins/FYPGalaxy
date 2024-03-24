@@ -30,7 +30,7 @@ class SAMDataset(Dataset):
         to_pad = self.max_boxes - len(boxes)
 
         labels = np.ones((self.max_boxes,))
-        labels[to_pad:] = -10
+        labels[len(boxes):] = -10
 
         boxes = F.pad(boxes, (0,0,0,to_pad), value=0)
         masks = F.pad(masks, (0,0,0,0,0,to_pad), value=0)
