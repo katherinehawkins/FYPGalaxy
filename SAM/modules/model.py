@@ -54,7 +54,7 @@ class SAMWrapper(nn.Module):
                                  input_labels=labels,
                                  multimask_output=False)
 
-            pred = torch.flatten(pred, end_dim=-3)
+            pred = torch.flatten(outputs.pred_masks, end_dim=-3)
             gT = torch.flatten(gT, end_dim=-3)
             
             loss = self.loss(pred, gT)
