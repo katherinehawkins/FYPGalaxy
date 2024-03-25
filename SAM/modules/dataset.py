@@ -22,8 +22,8 @@ class SAMDataset(Dataset):
                                input_labels=labels,
                                return_tensors="pt")
         
-        input = {k : torch.squeeze(v, dim=0) for k,v in input.items()}
-        input["ground_truth_mask"] = masks
+        input = {k : torch.squeeze(v) for k,v in input.items()}
+        input["ground_truth_mask"] = masks.to(torch.float)
         return input
         
     def __pad__(self, boxes, masks):
@@ -33,7 +33,7 @@ class SAMDataset(Dataset):
         labels[len(boxes):] = -10
 
         boxes = F.pad(boxes, (0,0,0,to_pad), value=0)
-        masks = F.pad(masks, (0,0,0,0,0,to_pad), value=0)
+        masks = F.pad(masks, (0,0,0,0,0,to_pad), value=100)
         return boxes, masks, labels
 
     def __len__(self):

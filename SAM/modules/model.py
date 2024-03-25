@@ -3,10 +3,11 @@ from tqdm import tqdm
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.optim import AdamW
 
 import numpy as np
-from sklearn.metrics import jaccard_score
+from torchmetrics.functional.classification import binary_jaccard_index, binary_accuracy
 
 class SAMWrapper(nn.Module):
     def __init__(self, model):
@@ -20,17 +21,17 @@ class SAMWrapper(nn.Module):
         epochs, save_path, self.device = cfg['epochs'], cfg['save_path'], cfg['device']
         
         self.optimizer = AdamW(self.model.mask_decoder.parameters(), lr=cfg['lr'])
-        self.loss = nn.CrossEntropyLoss()
+        self.loss = nn.BCEWithLogitsLoss()
         self.model = self.model.to(self.device)
 
         bestLoss, bestScores = 1000, []
         with tqdm(range(epochs), desc='Training') as tepoch:
             self.model.train(True)
-            tLoss, tScores = self.__step__(trainloader, update=True)
+            tLoss, tScores = self.epoch(trainloader, update=True)
 
             self.model.eval()
             with torch.no_grad():
-                vLoss, vScores = self.__step__(valloader, update=False)
+                vLoss, vScores = self.epoch(valloader, update=False)
 
             if vLoss < bestLoss:
                 self.save(save_path)
@@ -41,11 +42,12 @@ class SAMWrapper(nn.Module):
         self.recover(save_path)
         return bestLoss, bestScores
 
-    def __step__(self, dataloader, update=False):
+    def epoch(self, dataloader, update=False):
         meanLoss, meanScores = [], []
         for batch in dataloader:
             pixVal, inBox = batch['pixel_values'], batch['input_boxes']
             labels, gT = batch['input_labels'], batch['ground_truth_mask']
+            
             pixVal, inBox = pixVal.to(self.device), inBox.to(self.device)
             labels, gT = labels.to(self.device), gT.to(self.device)
 
@@ -54,15 +56,21 @@ class SAMWrapper(nn.Module):
                                  input_labels=labels,
                                  multimask_output=False)
 
-            pred = torch.flatten(outputs.pred_masks, end_dim=-3)
-            gT = torch.flatten(gT, end_dim=-3)
+            gT = gT[labels != -10]
+            logit = outputs.pred_masks[labels != -10]
             
-            loss = self.loss(pred, gT)
-            scores = self.__metrics__(gT, outputs.pred_masks)
-            meanScores.append(scores)
-
+            h, w = gT.shape[-1], gT.shape[-2]
+            logit = F.interpolate(logit, (h,w), mode='bilinear', align_corners=False)
+            logit = torch.squeeze(logit)
+            
+            loss = self.loss(logit, gT)
             if update:
                 self.__updateWeights__(loss)
+            
+            pred = F.sigmoid(logit)
+            scores = self.__metrics__(gT, pred)
+            meanScores.append(scores)
+            meanLoss.append(loss)
 
         meanScores = np.stack(meanScores)
         return mean(meanLoss), np.mean(meanScores, axis=0)
@@ -75,8 +83,10 @@ class SAMWrapper(nn.Module):
         return None
     
     def __metrics__(self, gT, pred):
-        iou = jaccard_score(gT, pred, average='micro')
-        return np.array([iou])
+        gT, pred = gT.cpu(), pred.detach().cpu()
+        iou = binary_jaccard_index(pred, gT)
+        acc = binary_accuracy(pred, gT)
+        return np.array([iou, acc])
     
     def __freezeBackbone__(self):
         for name, param in self.model.named_parameters():
