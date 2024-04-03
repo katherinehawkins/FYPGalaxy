@@ -9,7 +9,7 @@ import numpy as np
 from transformers import SamModel
 from sklearn.metrics import jaccard_score
 
-
+# Define the class for the SAM Model
 class SAM(nn.Module):
     def __init__(self):
         self.model = SamModel.from_pretrained("facebook/sam-vit-base")
