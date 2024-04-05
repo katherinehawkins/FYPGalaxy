@@ -9,20 +9,46 @@ from torch.optim import AdamW
 import numpy as np
 from torchmetrics.functional.classification import binary_jaccard_index, binary_accuracy
 
+def freezeBackbone(model):
+    for name, param in model.named_parameters():
+        if name.startswith("vision_encoder") or name.startswith("prompt_encoder"):
+            param.requires_grad_(False)
+    return model
+
+def metrics(gT, pred):
+    gT, pred = gT.cpu(), pred.detach().cpu()
+    iou = binary_jaccard_index(pred, gT)
+    acc = binary_accuracy(pred, gT)
+
+    res = [iou.item(),
+           acc.item()]
+    return np.array(res)
+
 class SAMWrapper(nn.Module):
     def __init__(self, model):
         super().__init__()
+        self.model = freezeBackbone(model)
+        self.loss = nn.BCEWithLogitsLoss()
+
+    def forward(self, pixel_values, input_boxes, input_labels, ground_truth):
+        outputs = self.model(pixel_values=pixel_values, 
+                             input_boxes=input_boxes, 
+                             input_labels=input_labels,
+                             multimask_output=False)
+
+        ground_truth = ground_truth[input_labels != -10]
+        logit = outputs.pred_masks[input_labels != -10]
         
-        self.model = model
-        self.__freezeBackbone__()
+        h, w = ground_truth.shape[-1], ground_truth.shape[-2]
+        logit = F.interpolate(logit, (h,w), mode='bilinear', align_corners=False)
+        return torch.squeeze(logit), ground_truth
     
     def fit(self, cfg):
         trainloader, valloader = cfg['trainloader'], cfg['valloader']
-        epochs, save_path, self.device = cfg['epochs'], cfg['save_path'], cfg['device']
-        
-        self.optimizer = AdamW(self.model.mask_decoder.parameters(), lr=cfg['lr'])
-        self.loss = nn.BCEWithLogitsLoss()
-        self.model = self.model.to(self.device)
+        epochs, save_path = cfg['epochs'], cfg['save_path']
+
+        self.setDevice(cfg['device'])
+        self.configureOptimizer(cfg['lr'])
 
         bestLoss, bestScores = 1000, []
         with tqdm(range(epochs), desc='Training') as tepoch:
@@ -45,30 +71,18 @@ class SAMWrapper(nn.Module):
     def epoch(self, dataloader, update=False):
         meanLoss, meanScores = [], []
         for batch in dataloader:
-            pixVal, inBox = batch['pixel_values'], batch['input_boxes']
-            labels, gT = batch['input_labels'], batch['ground_truth_mask']
-            
-            pixVal, inBox = pixVal.to(self.device), inBox.to(self.device)
-            labels, gT = labels.to(self.device), gT.to(self.device)
+            pixVal = batch['pixel_values'].to(self.device)
+            inBox = batch['input_boxes'].to(self.device)
+            labels = batch['input_labels'].to(self.device)
+            gT = batch['ground_truth_mask'].to(self.device)
 
-            outputs = self.model(pixel_values=pixVal, 
-                                 input_boxes=inBox, 
-                                 input_labels=labels,
-                                 multimask_output=False)
-
-            gT = gT[labels != -10]
-            logit = outputs.pred_masks[labels != -10]
-            
-            h, w = gT.shape[-1], gT.shape[-2]
-            logit = F.interpolate(logit, (h,w), mode='bilinear', align_corners=False)
-            logit = torch.squeeze(logit)
+            logit, gT = self.__forward__(pixVal, inBox, labels, gT)
             
             loss = self.loss(logit, gT)
             if update:
                 self.__updateWeights__(loss)
             
-            pred = F.sigmoid(logit)
-            scores = self.__metrics__(gT, pred)
+            scores = metrics(gT, logit) # not true average across all data in a dataset
             meanScores.append(scores)
             meanLoss.append(loss)
 
@@ -78,20 +92,15 @@ class SAMWrapper(nn.Module):
     def __updateWeights__(self, loss):
         self.optimizer.zero_grad()
         loss.backward()
-
         self.optimizer.step()
         return None
     
-    def __metrics__(self, gT, pred):
-        gT, pred = gT.cpu(), pred.detach().cpu()
-        iou = binary_jaccard_index(pred, gT)
-        acc = binary_accuracy(pred, gT)
-        return np.array([iou, acc])
+    def configureOptimizer(self, lr):
+        self.optimizer = AdamW(self.model.mask_decoder.parameters(), lr=lr)
     
-    def __freezeBackbone__(self):
-        for name, param in self.model.named_parameters():
-            if name.startswith("vision_encoder") or name.startswith("prompt_encoder"):
-                param.requires_grad_(False)
+    def setDevice(self, device):
+        self.device = device
+        self.model = self.model.to(device)
         return None
     
     def save(self, save_path):
