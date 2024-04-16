@@ -1,3 +1,6 @@
 [submodule "FYPGalaxyData"]
 	path = FYPGalaxyData
 	url = https://github.com/treeizard/FYPGalaxyData.git
+[submodule "SemanticGalSAM"]
+	path = SemanticGalSAM
+	url = https://github.com/suleman9254/SemanticGalSAM.git
