@@ -1,0 +1,10 @@
+path: ../datasets/RadioGalaxyNET/data/RadioGalaxyNETSeg
+
+train: images/train
+train_labels: labels/train
+val: images/val
+val_labels: labels/val
+test: images/test
+test_labels: labels/test
+nc: 4
+names: ['FRII', 'FRI', 'FRX', 'R']  # List of class names
