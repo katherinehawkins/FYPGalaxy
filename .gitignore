@@ -3,3 +3,4 @@ __pycache__/galaxydatasetv2.cpython-310.pyc
 .ipynb_checkpoints/README-checkpoint.md
 SAM/modules/__pycache__/dataset.cpython-310.pyc
 SAM/modules/__pycache__/model.cpython-310.pyc
+*.yaml
