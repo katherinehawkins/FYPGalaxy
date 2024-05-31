@@ -1,8 +1,0 @@
-/opt/slurm/var/spool/job34568513/slurm_script: line 24: /home/zacharid/ml20_scratch/zacharid/miniconda/bin/activate: No such file or directory
-
-CondaError: Run 'conda init' before 'conda activate'
-
-Traceback (most recent call last):
-  File "/fs04/ml20/FYP_GALAXY/YOLOv9/yolov9.py", line 1, in <module>
-    from ultralytics import YOLO
-ModuleNotFoundError: No module named 'ultralytics'
