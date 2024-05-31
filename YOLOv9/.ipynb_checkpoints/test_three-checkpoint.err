@@ -1,9 +1,0 @@
-[34m[1mtest_dual: [0mdata=data/RadioGalaxyNet.yaml, weights=['runs/train/yolov9-c-GAL1_batch8_pat200/weights/best.pt'], batch_size=4, imgsz=450, conf_thres=0.001, iou_thres=0.7, max_det=300, task=test, device=0, workers=8, single_cls=False, augment=False, verbose=False, save_txt=False, save_hybrid=False, save_conf=False, save_json=True, project=runs/test, name=yolov9-c-GAL1_batch8_pat200_batch4test, exist_ok=False, half=False, dnn=False, min_items=0
-Traceback (most recent call last):
-  File "/fs04/ml20/FYP_GALAXY/YOLOv9/yolov9-main/test_dual.py", line 441, in <module>
-    main(opt)
-  File "/fs04/ml20/FYP_GALAXY/YOLOv9/yolov9-main/test_dual.py", line 408, in main
-    reset_seed(123)
-  File "/fs04/ml20/FYP_GALAXY/YOLOv9/yolov9-main/test_dual.py", line 30, in reset_seed
-    random.seed(n)
-NameError: name 'random' is not defined
