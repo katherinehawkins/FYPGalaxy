@@ -42,8 +42,19 @@ The project aims to showcase different tools for the State of the Art detection 
 | U-Net                                  | Semantic | 0.595 |Our Result|
 
 ## Installation
+1. Download the repository using:
+```
+git clone https://github.com/facebookresearch/segment-anything?tab=readme-ov-file
+```
+
+2. For more detailed instruction in how to use each of the models please refer to the readme page in each corresponding subfolder.
 
 ## Model Checkpoints
+| Models                                   | Links | 
+|------------------------------------------|--------|
+| Yolo v9            | [checkpoint]()|
+| DINO Weights          | [checkpoint]()|
+| DINO + Faster RCNN Weights         | [checkpoint]()|
 
 ## License
 The model is licensed under the Apache 2.0 license.

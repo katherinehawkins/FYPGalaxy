@@ -4,7 +4,7 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import Dataset
 
-from base_dataset import RadioGalaxyNET
+from data.base_dataset import RadioGalaxyNET
 
 class SAMDataset(Dataset):
     def __init__(self, root, annFile, processor, max_boxes=5, transform=None, transforms=None):
