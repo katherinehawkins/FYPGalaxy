@@ -44,7 +44,7 @@ The project aims to showcase different tools for the State of the Art detection 
 ## Installation
 1. Download the repository using:
 ```
-git clone https://github.com/facebookresearch/segment-anything?tab=readme-ov-file
+git clone https://github.com/katherinehawkins/FYPGalaxy?tab=readme-ov-file#unlocking-celestial-enigma-with-ai
 ```
 
 2. For more detailed instruction in how to use each of the models please refer to the readme page in each corresponding subfolder.
