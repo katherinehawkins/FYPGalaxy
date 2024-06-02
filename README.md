@@ -1,5 +1,11 @@
 #  Unlocking Celestial Enigma With AI
 
+
+<p float="middle">
+  <img src="0_images/Unlocking_Celestial_Enigma.png?raw" alt="Segmentation Detection Demo"/>
+</p>
+
+
 **Supervisor:** Mehrtash T. Harandi
 
 **Authors:** Katherine Hawkins, Muhammad Suleman, Zach Drinkall, Yide Tao
