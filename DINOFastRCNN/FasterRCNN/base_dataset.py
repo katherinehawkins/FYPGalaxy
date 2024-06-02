@@ -48,7 +48,7 @@ class RadioGalaxyNET(Dataset):
         
         self.segmentations = defaultdict(list) # maps image_id to annotations
         for ann in self.annotation['annotations']:
-            imgId = ann['id']
+            imgId = ann['image_id']
             self.segmentations[imgId].append(ann)
         return None
 

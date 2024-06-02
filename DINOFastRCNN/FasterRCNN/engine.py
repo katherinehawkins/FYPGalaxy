@@ -7,9 +7,9 @@ import torchvision.models.detection.mask_rcnn
 import utils
 from coco_eval import CocoEvaluator
 from coco_utils import get_coco_api_from_dataset
+import os
 
-
-def train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq, scaler=None):
+def train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq, save_path= None, scaler=None):
     model.train()
     metric_logger = utils.MetricLogger(delimiter="  ")
     metric_logger.add_meter("lr", utils.SmoothedValue(window_size=1, fmt="{value:.6f}"))
@@ -56,6 +56,10 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq, sc
 
         metric_logger.update(loss=losses_reduced, **loss_dict_reduced)
         metric_logger.update(lr=optimizer.param_groups[0]["lr"])
+    # Save Model
+    if save_path != None:
+        save_file_path = os.path.join(save_path, f"model_epoch_{epoch}.pth")
+        torch.save(model.state_dict(), save_file_path)
 
     return metric_logger
 
@@ -79,6 +83,7 @@ def evaluate(model, data_loader, device):
     torch.set_num_threads(1)
     cpu_device = torch.device("cpu")
     model.eval()
+    
     metric_logger = utils.MetricLogger(delimiter="  ")
     header = "Test:"
 
