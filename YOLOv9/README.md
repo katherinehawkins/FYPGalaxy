@@ -68,8 +68,12 @@ https://drive.google.com/file/d/1XsMn4PrEYPve8RjJ7-QWamfbjT6ayTeH/view?usp=drive
 - The fine tuning data will be saved in yolov9-main/runs/segment
 - Run code
 
-  <br>
+<br>
 
 **Once again, these files can be run on MASSIVE or a different terminal if needed**
 - If running on MASSIVE, update the file quickstart_segment.sh with your requirements and run the command 'sbatch quickstart.sh'
 - If running on a different terminal, the zach_yolo_segment_v1.py file can be run directly
+
+<br>
+
+<h2>Happy training!</h2>
